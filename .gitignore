@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Angular build output
+dist/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+
+# IDE files
+.vscode/

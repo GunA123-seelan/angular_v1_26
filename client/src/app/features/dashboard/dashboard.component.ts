@@ -36,6 +36,7 @@ export class DashboardComponent {
   error = signal<string | null>(null);
 
   constructor() {
+    console.log("processs")
     this.http.get<{ message: string }>(`${environment.apiUrl}/api/dashboard`, { withCredentials: true }).subscribe({
       next: (res) => {
         this.data.set(res);
