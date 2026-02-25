@@ -23,12 +23,19 @@ export class AuthService {
     private router: Router
   ) {}
 
-  login(username: string, password: string) {
-    console.log(username, password);
+  checkUsername(username: string) {
+    return this.http.post<{ valid: boolean; passkey?: string }>(
+      `${this.api}/api/auth/check-username`,
+      { username: username?.trim() },
+      { withCredentials: true }
+    );
+  }
+
+  login(username: string, passkey: string) {
     return this.http
-      .post<{ user: User }>(`${this.api}/api/auth/login`, { username, password }, { withCredentials: true })
+      .post<{ user: User }>(`${this.api}/api/auth/login`, { username: username?.trim(), password: passkey?.trim() }, { withCredentials: true })
       .pipe(
-        tap((res) => { console.log('login success', res); this.userSignal.set(res.user) }),
+        tap((res) => this.userSignal.set(res.user)),
         catchError((err) => {
           this.userSignal.set(null);
           throw err;

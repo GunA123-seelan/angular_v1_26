@@ -22,6 +22,8 @@ const REFRESH_EXPIRY = '7d';
 
 // In memory store for refresh tokens (use DB in production)
 const refreshTokens = new Map();
+// Store 4-digit passkey per username (valid username = "guna")
+const passkeys = new Map();
 
 app.use(cookieParser());
 app.use(express.json());
@@ -32,16 +34,38 @@ app.use(cors({
 
 // --- Auth routes ---
 
-// POST /api/auth/login - body: { username, password }
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body || {};
-  console.log('login request', username, password);
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
+// POST /api/auth/check-username - body: { username } - only "guna" is valid, returns 4-digit passkey
+const VALID_USERNAME = 'guna';
+app.post('/api/auth/check-username', (req, res) => {
+  console.log("check-username request", req.body);
+  const { username } = req.body || {};
+  if (!username || typeof username !== 'string') {
+    return res.status(400).json({ valid: false, error: 'Username required' });
   }
-  // Demo: accept any user (use DB in production)
-  const user = { id: '1', username };
+  const normalized = username.trim().toLowerCase();
+  if (normalized !== VALID_USERNAME) {
+    return res.json({ valid: false });
+  }
+  const passkey = String(Math.floor(1000 + Math.random() * 9000));
+  passkeys.set(normalized, { passkey });
+  res.json({ valid: true, passkey });
+});
 
+// POST /api/auth/login - body: { username, password } - password = 4-digit passkey from check-username
+app.post('/api/auth/login', (req, res) => {
+  console.log("login request", req.body);
+  const { username, password } = req.body || {};
+  if (!username || password === undefined || password === null) {
+    return res.status(400).json({ error: 'Username and passkey required' });
+  }
+  const normalized = username.trim().toLowerCase();
+  const stored = passkeys.get(normalized);
+  if (!stored || String(password).trim() !== stored.passkey) {
+    return res.status(401).json({ error: 'Invalid username or passkey' });
+  }
+  passkeys.delete(normalized);
+
+  const user = { id: '1', username: normalized };
   const accessToken = jwt.sign(
     { userId: user.id, username: user.username },
     ACCESS_SECRET,
@@ -71,6 +95,7 @@ app.post('/api/auth/login', (req, res) => {
 
 // POST /api/auth/refresh - uses refreshToken cookie
 app.post('/api/auth/refresh', (req, res) => {
+  console.log("refresh request", req.cookies);
   const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) {
     return res.status(401).json({ error: 'No refresh token' });
@@ -109,12 +134,14 @@ app.post('/api/auth/logout', (req, res) => {
 
 // Middleware: verify access token from cookie
 function authMiddleware(req, res, next) {
+  console.log("authMiddleware request", req.cookies);
   const token = req.cookies?.accessToken;
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
     req.user = jwt.verify(token, ACCESS_SECRET);
+    console.log("authMiddleware request", req.user);
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Token expired or invalid' });
@@ -123,6 +150,7 @@ function authMiddleware(req, res, next) {
 
 // Protected route - dashboard data
 app.get('/api/dashboard', authMiddleware, (req, res) => {
+  console.log("dashboard request", req.user);
   res.json({
     message: 'Dashboard data',
     user: req.user
