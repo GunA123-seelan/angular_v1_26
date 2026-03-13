@@ -1,0 +1,136 @@
+<div class="dashboard">
+  <header class="header">
+    <h1>Dashboard</h1>
+    @if (auth.user(); as user) {
+      <span class="user">Hello, <strong>{{ user.username }}</strong></span>
+    }
+    <div class="header-actions">
+      <button type="button" class="btn btn-cart" (click)="toggleCart()">
+        Cart ({{ shop.cartCount() }})
+      </button>
+      <button type="button" class="btn btn-outline" (click)="auth.logout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- Image Slider -->
+  <section class="slider-section">
+    <div class="slider">
+      <button type="button" class="slider-btn prev" (click)="prevSlide()" aria-label="Previous">&#10094;</button>
+      <div class="slider-track">
+        @for (img of sliderImages; track img; let i = $index) {
+          <div class="slide" [class.active]="currentSlide() === i">
+            <img [src]="img" [alt]="'Slide ' + (i + 1)" />
+          </div>
+        }
+      </div>
+      <button type="button" class="slider-btn next" (click)="nextSlide()" aria-label="Next">&#10095;</button>
+    </div>
+    <div class="slider-dots">
+      @for (img of sliderImages; track img; let i = $index) {
+        <button type="button" class="dot" [class.active]="currentSlide() === i" (click)="currentSlide.set(i)" [attr.aria-label]="'Slide ' + (i + 1)"></button>
+      }
+    </div>
+  </section>
+
+  <!-- Products -->
+  <section class="products-section">
+    <h2>Products</h2>
+    <div class="products-grid">
+      @for (p of shop.products(); track p.id) {
+        <div class="product-card">
+          <div class="product-image">
+            <img [src]="p.image" [alt]="p.name" />
+          </div>
+          <div class="product-info">
+            <h3>{{ p.name }}</h3>
+            <p class="price">&#8377;{{ p.price }}</p>
+            <button type="button" class="btn btn-primary" (click)="addToCart(p)">Add to Cart</button>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Cart drawer -->
+  @if (showCart()) {
+    <div class="cart-overlay" (click)="toggleCart()"></div>
+    <aside class="cart-drawer">
+      <div class="cart-header">
+        <h2>Cart</h2>
+        <button type="button" class="close" (click)="toggleCart()">&times;</button>
+      </div>
+      <div class="cart-body">
+        @if (shop.cartItems().length === 0) {
+          <p class="empty">Cart is empty.</p>
+        } @else {
+          @for (item of shop.cartItems(); track item.id) {
+            <div class="cart-item">
+              <img [src]="item.image" [alt]="item.name" class="cart-item-img" />
+              <div class="cart-item-details">
+                <span class="name">{{ item.name }}</span>
+                <span class="price">&#8377;{{ item.price }} &times; {{ item.quantity }}</span>
+                <div class="qty-controls">
+                  <button type="button" (click)="updateQty(item.id, item.quantity - 1)">−</button>
+                  <span>{{ item.quantity }}</span>
+                  <button type="button" (click)="updateQty(item.id, item.quantity + 1)">+</button>
+                </div>
+              </div>
+              <button type="button" class="remove" (click)="removeFromCart(item.id)">Remove</button>
+            </div>
+          }
+          <div class="cart-footer">
+            <p class="total">Total: &#8377;{{ shop.cartTotal() }}</p>
+            <button type="button" class="btn btn-primary" (click)="openOrderForm()">Place Order</button>
+          </div>
+        }
+      </div>
+    </aside>
+  }
+
+  <!-- Order form (delivery) -->
+  @if (showOrderForm()) {
+    <div class="modal-overlay" (click)="closeOrderForm()"></div>
+    <div class="modal order-modal">
+      <h2>Order &amp; Delivery Details</h2>
+      <form (submit)="$event.preventDefault(); placeOrder()">
+        <label>Address</label>
+        <input type="text" [value]="deliveryForm().address" (input)="setDelivery('address', $any($event.target).value)" placeholder="Street, area" />
+        <label>City</label>
+        <input type="text" [value]="deliveryForm().city" (input)="setDelivery('city', $any($event.target).value)" placeholder="City" />
+        <label>Pincode</label>
+        <input type="text" [value]="deliveryForm().pincode" (input)="setDelivery('pincode', $any($event.target).value)" placeholder="Pincode" />
+        <p class="order-summary">Total: &#8377;{{ shop.cartTotal() }}</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" (click)="closeOrderForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="placingOrder()">Place Order</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- Orders list -->
+  <section class="orders-section">
+    <h2>My Orders</h2>
+    @if (shop.orders().length === 0) {
+      <p class="empty">No orders yet.</p>
+    } @else {
+      <div class="orders-list">
+        @for (order of shop.orders(); track order.id) {
+          <div class="order-card">
+            <p class="order-id">Order #{{ order.id }}</p>
+            <p class="order-date">{{ order.createdAt | date:'short' }}</p>
+            <p class="order-total">Total: &#8377;{{ order.total }}</p>
+            <div class="order-delivery">
+              <strong>Delivery:</strong> {{ order.delivery.address }}, {{ order.delivery.city }} - {{ order.delivery.pincode }}
+            </div>
+            <ul class="order-items">
+              @for (oi of order.items; track oi.productId) {
+                <li>{{ oi.name }} &times; {{ oi.quantity }} = &#8377;{{ oi.price * oi.quantity }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>
